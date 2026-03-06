@@ -1,0 +1,61 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: pi-agent-runner-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+
+  callback-relay:
+    image: node:22-alpine
+    container_name: pi-agent-runner-callback
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    command: sh -c "npm install --omit=dev && node apps/callback-relay/src/index.js"
+    volumes:
+      - ..:/app
+    ports:
+      - "9999:9999"
+
+  api:
+    image: node:22-alpine
+    container_name: pi-agent-runner-api
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    command: sh -c "npm install --omit=dev && node apps/api/src/index.js"
+    volumes:
+      - ..:/app
+    ports:
+      - "8787:8787"
+    depends_on:
+      - redis
+
+  worker:
+    image: node:22-alpine
+    container_name: pi-agent-runner-worker
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    command: sh -c "npm install --omit=dev && node apps/worker/src/index.js"
+    volumes:
+      - ..:/app
+    depends_on:
+      - redis
+
+  scheduler:
+    image: node:22-alpine
+    container_name: pi-agent-runner-scheduler
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    command: sh -c "npm install --omit=dev && node apps/scheduler/src/index.js"
+    volumes:
+      - ..:/app
+    depends_on:
+      - redis
