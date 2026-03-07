@@ -17,7 +17,7 @@ services:
     volumes:
       - ..:/app
     ports:
-      - "9999:9999"
+      - "127.0.0.1:9999:9999"
 
   api:
     image: node:22-alpine
@@ -30,7 +30,7 @@ services:
     volumes:
       - ..:/app
     ports:
-      - "8787:8787"
+      - "127.0.0.1:8787:8787"
     depends_on:
       - redis
 
