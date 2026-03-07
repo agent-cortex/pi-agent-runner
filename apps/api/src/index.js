@@ -28,20 +28,49 @@ app.post('/jobs', async (req, reply) => {
     return reply.code(400).send({ error: 'invalid_payload', details: parsed.error.issues });
   }
 
-  const { jobType, input, priority = 5, callbackUrl, metadata } = parsed.data;
-  const job = await queue.add(
-    jobType,
-    { jobType, input, callbackUrl, metadata },
-    {
-      attempts: 3,
-      backoff: { type: 'exponential', delay: 5000 },
-      removeOnComplete: 200,
-      removeOnFail: 500,
-      priority,
-    }
-  );
+  const { jobType, input, priority = 5, callbackUrl, metadata, schedule } = parsed.data;
 
-  return reply.code(202).send({ jobId: job.id, status: 'queued' });
+  if (jobType === 'reminder' && !String(input?.message || '').trim()) {
+    return reply.code(400).send({ error: 'invalid_payload', details: 'reminder.input.message is required' });
+  }
+
+  if (schedule?.everySeconds && schedule?.cron) {
+    return reply.code(400).send({
+      error: 'invalid_payload',
+      details: 'schedule.everySeconds and schedule.cron are mutually exclusive',
+    });
+  }
+
+  const options = {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 5000 },
+    removeOnComplete: 200,
+    removeOnFail: 500,
+    priority,
+  };
+
+  if (schedule?.runAt) {
+    const runAt = new Date(schedule.runAt).getTime();
+    const delay = runAt - Date.now();
+    if (!Number.isFinite(runAt) || delay <= 0) {
+      return reply.code(400).send({ error: 'invalid_payload', details: 'schedule.runAt must be in the future' });
+    }
+    options.delay = delay;
+  }
+
+  if (schedule?.everySeconds) {
+    options.repeat = { every: schedule.everySeconds * 1000 };
+  } else if (schedule?.cron) {
+    options.repeat = { pattern: schedule.cron, tz: schedule.tz || process.env.TZ || 'Asia/Kolkata' };
+  }
+
+  const job = await queue.add(jobType, { jobType, input, callbackUrl, metadata, schedule }, options);
+
+  return reply.code(202).send({
+    jobId: job.id,
+    status: 'queued',
+    scheduled: Boolean(schedule?.runAt || schedule?.everySeconds || schedule?.cron),
+  });
 });
 
 app.get('/jobs/:id', async (req, reply) => {

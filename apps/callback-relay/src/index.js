@@ -35,7 +35,9 @@ app.post('/callback', async (req, reply) => {
 
   const payload = req.body || {};
   const msg = event === 'job.completed'
-    ? `✅ ${payload.jobType} done\n${payload.summary || ''}\nartifact: ${payload.artifactPath || 'n/a'}`
+    ? payload.jobType === 'reminder'
+      ? `${payload.summary || '⏰ Reminder'}`
+      : `✅ ${payload.jobType} done\n${payload.summary || ''}\nartifact: ${payload.artifactPath || 'n/a'}`
     : `❌ ${payload.jobType || 'job'} failed\n${payload.error || 'unknown error'}`;
 
   await sendTelegram(msg);

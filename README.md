@@ -94,6 +94,24 @@ Body:
 }
 ```
 
+Supports optional `schedule`:
+
+```json
+{
+  "schedule": {
+    "runAt": "2026-03-10T13:30:00+05:30",
+    "everySeconds": 3600,
+    "cron": "0 9 * * 1-5",
+    "tz": "Asia/Kolkata"
+  }
+}
+```
+
+Rules:
+- Use only one repeat mode: `everySeconds` **or** `cron`
+- `runAt` must be in the future
+- `everySeconds`/`cron` create repeating jobs
+
 ### `GET /jobs/:id`
 
 Returns job state, attempts, result/error, timestamps.
@@ -129,6 +147,50 @@ data/artifacts/crypto-brief-YYYY-MM-DD.md
 ```
 
 Then sends webhook callback with summary + artifact path.
+
+## Reminder template
+
+Use `jobType: "reminder"` when users ask to be reminded at a specific date/time or at a recurring frequency.
+
+One-time reminder:
+
+```bash
+curl -X POST http://localhost:8787/jobs \
+  -H "Authorization: Bearer $RUNNER_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jobType": "reminder",
+    "input": {
+      "title": "Follow-up",
+      "message": "Ping Alice about the deployment",
+      "recipient": "megabyte"
+    },
+    "schedule": {
+      "runAt": "2026-03-10T17:00:00+05:30"
+    }
+  }'
+```
+
+Recurring reminder (every 6 hours):
+
+```bash
+curl -X POST http://localhost:8787/jobs \
+  -H "Authorization: Bearer $RUNNER_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jobType": "reminder",
+    "input": {
+      "title": "Hydration",
+      "message": "Drink water",
+      "recipient": "megabyte"
+    },
+    "schedule": {
+      "everySeconds": 21600
+    }
+  }'
+```
+
+When it executes, the worker completes the reminder job and callback relay forwards a concise reminder message to Telegram.
 
 ---
 
