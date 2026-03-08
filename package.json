@@ -8,7 +8,8 @@
     "start:api": "node apps/api/src/index.js",
     "start:worker": "node apps/worker/src/index.js",
     "start:scheduler": "node apps/scheduler/src/index.js",
-    "dev": "echo 'Run services separately: npm run start:api | start:worker | start:scheduler'",
+    "start:installer": "node apps/installer/src/index.js",
+    "dev": "echo 'Run services separately: npm run start:api | start:worker | start:scheduler | start:installer'",
     "start:callback-relay": "node apps/callback-relay/src/index.js"
   },
   "dependencies": {

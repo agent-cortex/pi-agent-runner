@@ -90,7 +90,9 @@ Body:
   "input": { "maxItems": 5 },
   "priority": 5,
   "callbackUrl": "https://example.com/runner-callback",
-  "metadata": { "requestedBy": "agent-main" }
+  "metadata": { "requestedBy": "agent-main" },
+  "scheduleBackend": "bullmq",
+  "idempotencyKey": "optional-client-key"
 }
 ```
 
@@ -112,6 +114,14 @@ Rules:
 - `runAt` must be in the future
 - `everySeconds`/`cron` create repeating jobs
 
+Backends:
+- `scheduleBackend: "bullmq"` (default) keeps scheduling inside Redis/BullMQ
+- `scheduleBackend: "systemd"` writes a signed/structured manifest under `data/systemd-manifests/` for host-level timer installers
+  - installer supports cron patterns: `M * * * *`, `M H * * *`, `M H * * D`
+
+Idempotency:
+- pass `Idempotency-Key` header (or body `idempotencyKey`) to dedupe retries
+
 ### `GET /jobs/:id`
 
 Returns job state, attempts, result/error, timestamps.
@@ -120,9 +130,58 @@ Returns job state, attempts, result/error, timestamps.
 
 Returns latest jobs (basic listing).
 
+### `GET /schedules`
+
+Returns recurring/system schedules tracked by the API (BullMQ + systemd-manifest backends).
+
+### `PATCH /jobs/:id`
+
+Pause/resume a tracked schedule:
+
+- BullMQ backend: removes/re-adds repeatable schedule
+- systemd backend: updates manifest `enabled` flag; installer disables/enables the corresponding timer
+
+```json
+{ "action": "pause" }
+```
+
+or
+
+```json
+{ "action": "resume" }
+```
+
+### `DELETE /jobs/:id`
+
+Remove a queued job or tracked schedule.
+
+- systemd backend also deletes manifest; installer prunes stale `piar-sysd-*` unit/timer files.
+
 ### `GET /queues/stats`
 
 Returns waiting/active/completed/failed/delayed counters.
+
+---
+
+## Systemd Installer Service (new)
+
+`apps/installer` polls `data/systemd-manifests/` and syncs generated unit/timer files.
+
+### Dry-run mode (Docker default)
+- writes units to `data/systemd-units/`
+- does **not** call `systemctl`
+
+### Apply mode (host)
+Run installer on host with:
+
+- `APPLY_SYSTEMD=true`
+- `SYSTEMD_DIR=/etc/systemd/system`
+- `INSTALLER_TOKEN` set (same value in API + installer)
+
+The generated service triggers:
+`POST /internal/systemd/trigger/:id`
+
+That endpoint is intended for installer use only and guarded by `x-installer-token` when `INSTALLER_TOKEN` is set.
 
 ---
 

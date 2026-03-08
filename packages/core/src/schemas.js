@@ -19,4 +19,6 @@ export const createJobSchema = z.object({
   callbackUrl: z.url().optional(),
   metadata: z.record(z.string(), z.any()).optional(),
   schedule: scheduleSchema,
+  scheduleBackend: z.enum(['bullmq', 'systemd']).default('bullmq').optional(),
+  idempotencyKey: z.string().min(8).max(128).optional(),
 });

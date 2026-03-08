@@ -59,3 +59,20 @@ services:
       - ..:/app
     depends_on:
       - redis
+
+  installer:
+    image: node:22-alpine
+    container_name: pi-agent-runner-installer
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      - SYSTEMD_DIR=/app/data/systemd-units
+      - APPLY_SYSTEMD=false
+      - API_URL=http://api:8787
+    command: sh -c "npm install --omit=dev && node apps/installer/src/index.js"
+    volumes:
+      - ..:/app
+    depends_on:
+      - api
