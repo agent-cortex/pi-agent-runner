@@ -21,9 +21,10 @@ Keep the main chat/session responsive by offloading async tasks (daily briefs, s
 
 ## Architecture
 
-- `apps/api` – Fastify API (`POST /jobs`, `GET /jobs/:id`, stats)
+- `apps/api` – Fastify API (`POST /jobs`, `GET /jobs/:id`, lifecycle ops)
 - `apps/worker` – BullMQ worker executes registered jobs
 - `apps/scheduler` – cron triggers recurring jobs
+- `apps/installer` – syncs `systemd` manifests into unit/timer files (dry-run or host-apply)
 - `packages/core` – queue + schema shared code
 - `packages/jobs` – job registry + task implementations
 - `packages/notifier` – webhook signing + delivery/retry
@@ -178,10 +179,22 @@ Run installer on host with:
 - `SYSTEMD_DIR=/etc/systemd/system`
 - `INSTALLER_TOKEN` set (same value in API + installer)
 
+Minimal host service pattern:
+
+```ini
+[Service]
+EnvironmentFile=/path/to/pi-agent-runner/.env
+Environment=RUNNER_DATA_DIR=/path/to/pi-agent-runner/data
+Environment=APPLY_SYSTEMD=true
+Environment=SYSTEMD_DIR=/etc/systemd/system
+Environment=API_URL=http://127.0.0.1:8787
+ExecStart=/usr/bin/node /path/to/pi-agent-runner/apps/installer/src/index.js
+```
+
 The generated service triggers:
 `POST /internal/systemd/trigger/:id`
 
-That endpoint is intended for installer use only and guarded by `x-installer-token` when `INSTALLER_TOKEN` is set.
+That endpoint is installer-only and guarded by `x-installer-token` when `INSTALLER_TOKEN` is set.
 
 ---
 
@@ -259,7 +272,8 @@ When it executes, the worker completes the reminder job and callback relay forwa
 - [ ] Postgres storage adapter (optional)
 - [ ] signed callback verifier example service
 - [ ] multi-job templates (web-monitor, PDF batch, digest)
-- [ ] Helm/systemd deployment options
+- [ ] `PATCH /jobs/:id` schedule editing (not only pause/resume)
+- [ ] installer `/status` endpoint + sync metrics
 
 ---
 
